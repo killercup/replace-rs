@@ -6,6 +6,7 @@ extern crate proptest;
 
 use failure::Error;
 use std::ops::Range;
+use std::rc::Rc;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum State {
@@ -13,11 +14,11 @@ enum State {
     Touched,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct Span {
     state: State,
     range: Range<usize>,
-    data: Vec<u8>,
+    data: Rc<[u8]>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -35,7 +36,7 @@ impl Data {
             parts: vec![Span {
                 state: State::Untouched,
                 range: 0..data.len(),
-                data: data.to_owned(),
+                data: data.into(),
             }],
         }
     }
@@ -45,7 +46,7 @@ impl Data {
             .iter()
             .map(|x| &x.data)
             .fold(Vec::new(), |mut acc, d| {
-                acc.extend(d);
+                acc.extend(d.iter());
                 acc
             })
     }
@@ -102,8 +103,7 @@ impl Data {
             let start_range_end = range.start.saturating_sub(start_part.range.start);
 
             if start_range_end > 0 {
-                let data =
-                    start_part.data[..min(start_range_end, start_part.data.len())].to_owned();
+                let data = start_part.data[..min(start_range_end, start_part.data.len())].into();
                 res.push(Span {
                     state: start_part.state,
                     range: start_part.range.start..range.start,
@@ -114,7 +114,7 @@ impl Data {
             res.push(Span {
                 state: State::Touched,
                 range: range.start..range.end,
-                data: data.to_owned(),
+                data: data.into(),
             });
 
             if let Some(end) = end {
@@ -127,7 +127,7 @@ impl Data {
                             range.end.saturating_sub(end_part.range.start),
                             end_part.data.len().saturating_sub(1),
                         )..]
-                            .to_owned(),
+                            .into(),
                     });
 
                     res.extend(self.parts[end + 1..].iter().cloned());
