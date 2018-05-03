@@ -1,4 +1,8 @@
 language: rust
+script:
+- cargo test
+- cargo test -- --ignored
+cache: cargo
 notifications:
   email:
     on_success: never
