@@ -5,3 +5,4 @@
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
 xs 295283378 125682884 3821059705 1887388045 # shrinks to ref s = ""
+xs 1860987179 1407790099 3922596237 1723096923 # shrinks to ref data = "𐫫", ref replacements = [(0..5503220909186334422, []), (0..1, [])]

@@ -114,13 +114,6 @@ impl Data {
 mod tests {
     use super::*;
 
-    proptest! {
-        #[test]
-        fn new_to_vec_roundtrip(ref s in "\\PC*") {
-            assert_eq!(s.as_bytes(), Data::new(s.as_bytes()).to_vec().as_slice());
-        }
-    }
-
     #[test]
     fn replace_some_stuff() {
         let mut d = Data::new(b"foo bar baz");
@@ -141,5 +134,26 @@ mod tests {
 
         d.replace_range(4..7, b"lol").unwrap();
         assert_eq!("foolol".as_bytes(), d.to_vec().as_slice());
+    }
+
+    proptest! {
+        #[test]
+        fn new_to_vec_roundtrip(ref s in "\\PC*") {
+            assert_eq!(s.as_bytes(), Data::new(s.as_bytes()).to_vec().as_slice());
+        }
+
+        #[test]
+        fn replace_random_chunks(
+            ref data in "\\PC*",
+            ref replacements in prop::collection::vec(
+                (any::<Range<usize>>(), any::<Vec<u8>>()),
+                1..1337,
+            )
+        ) {
+            let mut d = Data::new(data.as_bytes());
+            for r in replacements {
+                let _ = d.replace_range(r.0.clone(), &r.1);
+            }
+        }
     }
 }
