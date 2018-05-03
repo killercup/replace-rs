@@ -51,6 +51,10 @@ impl Data {
     }
 
     pub fn replace_range(&mut self, range: Range<usize>, data: &[u8]) -> Result<(), Error> {
+        if range.end == 0 {
+            return Ok(());
+        }
+
         let new_parts = {
             use std::cmp::min;
 
@@ -60,25 +64,24 @@ impl Data {
                 .ok_or_else(|| format_err!("No part found that contains range {:?}", range))?;
             let end = self.parts.iter().rposition(|x| x.range.end >= range.end);
 
-            println!("start {:?} end {:?}", start, end);
-
-            let mut res = Vec::new();
+            let mut res = Vec::with_capacity(self.parts.len());
             if start > 0 {
-                res.extend(self.parts[..start - 1].iter().cloned());
+                res.extend(self.parts[..start.saturating_sub(1)].iter().cloned());
             }
 
             let start_part = &self.parts[start];
 
-            println!("start {:?}", start_part);
-            println!("start range {:?}", ..(range.start - start_part.range.start));
+            let start_range_end = range.start.saturating_sub(start_part.range.start);
 
-            res.push(Span {
-                state: start_part.state,
-                range: start_part.range.start..range.start,
-                data: start_part.data
-                    [..min(range.start - start_part.range.start, start_part.data.len())]
-                    .to_owned(),
-            });
+            if start_range_end > 0 {
+                let data =
+                    start_part.data[..min(start_range_end, start_part.data.len())].to_owned();
+                res.push(Span {
+                    state: start_part.state,
+                    range: start_part.range.start..range.start,
+                    data,
+                });
+            }
 
             res.push(Span {
                 state: State::Touched,
@@ -88,17 +91,19 @@ impl Data {
 
             if let Some(end) = end {
                 let end_part = &self.parts[end];
+                if !end_part.data.is_empty() {
+                    res.push(Span {
+                        state: end_part.state,
+                        range: range.end..end_part.range.end,
+                        data: end_part.data[min(
+                            range.end.saturating_sub(end_part.range.start),
+                            end_part.data.len().saturating_sub(1),
+                        )..]
+                            .to_owned(),
+                    });
 
-                res.push(Span {
-                    state: end_part.state,
-                    range: range.end..end_part.range.end,
-                    data: end_part.data[(range.end - end_part.range.start)..].to_owned(),
-                });
-
-                println!("end {:?}", end_part);
-                println!("end range {:?}", (range.end - end_part.range.start)..);
-
-                res.extend(self.parts[end + 1..].iter().cloned());
+                    res.extend(self.parts[end + 1..].iter().cloned());
+                }
             }
 
             res
@@ -113,6 +118,7 @@ impl Data {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
 
     #[test]
     fn replace_some_stuff() {
