@@ -50,7 +50,11 @@ impl Data {
             })
     }
 
-    pub fn replace_range(&mut self, range: Range<usize>, data: &[u8]) -> Result<(), Error> {
+    pub fn replace_range_unless_touched(&mut self, range: Range<usize>, data: &[u8]) -> Result<(), Error> {
+        self.replace_range(range, data, true)
+    }
+
+    pub fn replace_range(&mut self, range: Range<usize>, data: &[u8], error_if_touched: bool) -> Result<(), Error> {
         if range.end == 0 {
             return Ok(());
         }
@@ -63,6 +67,14 @@ impl Data {
                 .position(|x| x.range.start <= range.start)
                 .ok_or_else(|| format_err!("No part found that contains range {:?}", range))?;
             let end = self.parts.iter().rposition(|x| x.range.end >= range.end);
+
+            if error_if_touched {
+                let end = if let Some(end) = end { end + 1 } else { self.parts.len() };
+                let any_touched = self.parts[start..end]
+                    .iter()
+                    .any(|p| p.state == State::Touched);
+                ensure!(!any_touched, "can't replace segments that were replaced previously");
+            }
 
             let mut res = Vec::with_capacity(self.parts.len());
             if start > 0 {
@@ -124,13 +136,13 @@ mod tests {
     fn replace_some_stuff() {
         let mut d = Data::new(b"foo bar baz");
 
-        d.replace_range(4..7, b"lol").unwrap();
+        d.replace_range(4..7, b"lol", false).unwrap();
         assert_eq!("foo lol baz".as_bytes(), d.to_vec().as_slice());
 
-        d.replace_range(4..7, b"lol").unwrap();
+        d.replace_range(4..7, b"lol", false).unwrap();
         assert_eq!("foo lol baz".as_bytes(), d.to_vec().as_slice());
 
-        d.replace_range(4..7, b"foobar").unwrap();
+        d.replace_range(4..7, b"foobar", false).unwrap();
         assert_eq!("foo foobar baz".as_bytes(), d.to_vec().as_slice());
     }
 
@@ -138,17 +150,29 @@ mod tests {
     fn broken_replacements() {
         let mut d = Data::new(b"foo");
 
-        d.replace_range(4..7, b"lol").unwrap();
+        d.replace_range_unless_touched(4..7, b"lol").unwrap();
         assert_eq!("foolol".as_bytes(), d.to_vec().as_slice());
+    }
+
+    #[test]
+    fn dont_replace_twice() {
+        let mut d = Data::new(b"foo");
+
+        d.replace_range_unless_touched(4..7, b"lol").unwrap();
+        assert_eq!("foolol".as_bytes(), d.to_vec().as_slice());
+        println!("{:?}", d);
+        assert!(d.replace_range_unless_touched(4..7, b"lol").is_err());
     }
 
     proptest! {
         #[test]
+        #[ignore]
         fn new_to_vec_roundtrip(ref s in "\\PC*") {
             assert_eq!(s.as_bytes(), Data::new(s.as_bytes()).to_vec().as_slice());
         }
 
         #[test]
+        #[ignore]
         fn replace_random_chunks(
             ref data in "\\PC*",
             ref replacements in prop::collection::vec(
@@ -158,7 +182,7 @@ mod tests {
         ) {
             let mut d = Data::new(data.as_bytes());
             for r in replacements {
-                let _ = d.replace_range(r.0.clone(), &r.1);
+                let _ = d.replace_range(r.0.clone(), &r.1, false);
             }
         }
     }
