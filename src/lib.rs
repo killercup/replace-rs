@@ -50,11 +50,20 @@ impl Data {
             })
     }
 
-    pub fn replace_range_unless_touched(&mut self, range: Range<usize>, data: &[u8]) -> Result<(), Error> {
+    pub fn replace_range_unless_touched(
+        &mut self,
+        range: Range<usize>,
+        data: &[u8],
+    ) -> Result<(), Error> {
         self.replace_range(range, data, true)
     }
 
-    pub fn replace_range(&mut self, range: Range<usize>, data: &[u8], error_if_touched: bool) -> Result<(), Error> {
+    pub fn replace_range(
+        &mut self,
+        range: Range<usize>,
+        data: &[u8],
+        error_if_touched: bool,
+    ) -> Result<(), Error> {
         if range.end == 0 {
             return Ok(());
         }
@@ -69,11 +78,18 @@ impl Data {
             let end = self.parts.iter().rposition(|x| x.range.end >= range.end);
 
             if error_if_touched {
-                let end = if let Some(end) = end { end + 1 } else { self.parts.len() };
+                let end = if let Some(end) = end {
+                    end + 1
+                } else {
+                    self.parts.len()
+                };
                 let any_touched = self.parts[start..end]
                     .iter()
                     .any(|p| p.state == State::Touched);
-                ensure!(!any_touched, "can't replace segments that were replaced previously");
+                ensure!(
+                    !any_touched,
+                    "can't replace segments that were replaced previously"
+                );
             }
 
             let mut res = Vec::with_capacity(self.parts.len());
