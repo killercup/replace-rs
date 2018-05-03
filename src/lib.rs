@@ -1,3 +1,9 @@
+//! A small crate giving you a simple container that allows easy and cheap
+//! replacement of parts of its content, with the ability to prevent changing
+//! the same parts multiple times.
+
+#[deny(missing_docs)]
+
 #[macro_use]
 extern crate failure;
 #[cfg(test)]
@@ -21,12 +27,14 @@ struct Span {
     data: Rc<[u8]>,
 }
 
+/// A container that allows easily replacing chunks of its data
 #[derive(Debug, Clone, Default)]
 pub struct Data {
     parts: Vec<Span>,
 }
 
 impl Data {
+    /// Create a new data container from a slice of bytes
     pub fn new(data: &[u8]) -> Self {
         if data.is_empty() {
             return Data::default();
@@ -41,6 +49,7 @@ impl Data {
         }
     }
 
+    /// Render this data as a vector of bytes
     pub fn to_vec(&self) -> Vec<u8> {
         self.parts
             .iter()
@@ -51,6 +60,8 @@ impl Data {
             })
     }
 
+    /// Replace a chunk of data with the given slice, erroring when this part
+    /// was already changed previously.
     pub fn replace_range_unless_touched(
         &mut self,
         range: Range<usize>,
@@ -59,6 +70,8 @@ impl Data {
         self.replace_range(range, data, true)
     }
 
+    /// Replace a chunk of data with a given slice and the option to return an
+    /// error if this part of the data was already changed earlier.
     pub fn replace_range(
         &mut self,
         range: Range<usize>,
