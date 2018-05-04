@@ -161,18 +161,33 @@ mod tests {
     use super::*;
     use proptest::prelude::*;
 
+    fn str(i: &[u8]) -> &str {
+        ::std::str::from_utf8(i).unwrap()
+    }
+
     #[test]
     fn replace_some_stuff() {
         let mut d = Data::new(b"foo bar baz");
 
-        d.replace_range(4..7, b"lol", false).unwrap();
-        assert_eq!("foo lol baz".as_bytes(), d.to_vec().as_slice());
+        d.replace_range(4..6, b"lol", false).unwrap();
+        assert_eq!("foo lol baz", str(&d.to_vec()));
 
-        d.replace_range(4..7, b"lol", false).unwrap();
-        assert_eq!("foo lol baz".as_bytes(), d.to_vec().as_slice());
+        d.replace_range(4..6, b"lol", false).unwrap();
+        assert_eq!("foo lol baz", str(&d.to_vec()));
 
-        d.replace_range(4..7, b"foobar", false).unwrap();
-        assert_eq!("foo foobar baz".as_bytes(), d.to_vec().as_slice());
+        d.replace_range(4..6, b"foobar", false).unwrap();
+        assert_eq!("foo foobar baz", str(&d.to_vec()));
+    }
+
+    #[test]
+    fn replace_multiple_lines() {
+        let mut d = Data::new(b"lorem\nipsum\ndolor");
+
+        d.replace_range(6..11, b"lol", false).unwrap();
+        assert_eq!("lorem\nlol\ndolor", str(&d.to_vec()));
+
+        d.replace_range(12..18, b"lol", false).unwrap();
+        assert_eq!("lorem\nlol\nlol", str(&d.to_vec()));
     }
 
     #[test]
@@ -180,7 +195,7 @@ mod tests {
         let mut d = Data::new(b"foo");
 
         d.replace_range_unless_touched(4..7, b"lol").unwrap();
-        assert_eq!("foolol".as_bytes(), d.to_vec().as_slice());
+        assert_eq!("foolol", str(&d.to_vec()));
     }
 
     #[test]
@@ -188,7 +203,7 @@ mod tests {
         let mut d = Data::new(b"foo");
 
         d.replace_range_unless_touched(4..7, b"lol").unwrap();
-        assert_eq!("foolol".as_bytes(), d.to_vec().as_slice());
+        assert_eq!("foolol", str(&d.to_vec()));
         println!("{:?}", d);
         assert!(d.replace_range_unless_touched(4..7, b"lol").is_err());
     }
